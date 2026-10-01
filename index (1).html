@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0b0b" />
+  <title>Virtual Ferrofluid Lamp Pro</title>
+  <style>
+    :root{
+      --bg:#0b0b0c;
+      --panel:#151517;
+      --panel-2:#1c1c1f;
+      --text:#f4f4f5;
+      --muted:#a1a1aa;
+      --border:#2a2a2e;
+      --accent:#b8ff3d;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{padding:24px}
+    .app{max-width:1280px;margin:0 auto}
+    .top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+    .top h1{font-size:clamp(24px,4vw,42px);line-height:1.05;margin:0 0 8px}
+    .top p{margin:0;color:var(--muted);max-width:780px}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+    .stage,.card{background:var(--panel);border:1px solid var(--border);border-radius:22px}
+    .stage{padding:14px}
+    .canvas-wrap{position:relative;overflow:hidden;border-radius:18px;background:#efefed}
+    canvas{display:block;width:100%;aspect-ratio:1/1;background:#efefed;cursor:crosshair;touch-action:none}
+    .badge{position:absolute;left:16px;top:16px;padding:7px 10px;border-radius:999px;background:rgba(16,16,18,.78);backdrop-filter:blur(8px);font-size:12px;color:#d4d4d8;border:1px solid rgba(255,255,255,.1);pointer-events:none}
+    .hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);padding:7px 10px;border-radius:999px;background:rgba(16,16,18,.72);backdrop-filter:blur(8px);font-size:12px;color:#d4d4d8;border:1px solid rgba(255,255,255,.1);pointer-events:none;white-space:nowrap}
+    .controls{display:grid;gap:14px}
+    .card{padding:16px}
+    .card h2{font-size:14px;margin:0 0 12px}
+    label{font-size:13px;color:#d4d4d8}
+    input[type=file]{width:100%;font-size:13px}
+    input[type=range]{width:100%;accent-color:var(--accent)}
+    audio{width:100%;margin-top:10px;height:40px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button{
+      min-height:44px;border-radius:12px;border:1px solid var(--border);
+      background:var(--panel-2);color:var(--text);padding:10px 13px;font-weight:650;cursor:pointer
+    }
+    button.primary{background:var(--accent);color:#111;border-color:transparent}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .control{margin-top:13px}
+    .control-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px}
+    output{color:var(--muted);font-size:12px}
+    .meter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+    .meter div{background:#0f0f11;border:1px solid var(--border);border-radius:12px;padding:10px}
+    .meter b{display:block;font-size:12px;margin-bottom:5px}
+    .meter span{display:block;height:6px;background:#26262a;border-radius:99px;overflow:hidden}
+    .meter i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .06s linear}
+    .status{font-size:12px;color:var(--muted);margin-top:10px;min-height:18px}
+    .tips{font-size:12px;color:var(--muted);line-height:1.55}
+    .switches{display:grid;gap:8px;margin-top:12px}
+    .switchline{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:#d4d4d8}
+    .switchline input{width:18px;height:18px;accent-color:var(--accent)}
+    .footer{color:#71717a;text-align:center;font-size:12px;margin-top:14px}
+    @media(max-width:900px){
+      body{padding:14px}
+      .layout{grid-template-columns:1fr}
+      .controls{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:650px){
+      .controls{grid-template-columns:1fr}
+      .stage{padding:8px}
+      .card{padding:14px}
+      .top{align-items:flex-start}
+      .hint{font-size:11px;bottom:10px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <h1>Virtual Ferrofluid Lamp Pro</h1>
+      <p>More fluid motion, stronger audio response, magnetic drift, pointer interaction, burst-splitting, and calm re-coalescence into a single ferrofluid mass.</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="stage">
+      <div class="canvas-wrap">
+        <canvas id="ffCanvas" aria-label="Interactive sound reactive ferrofluid lamp"></canvas>
+        <div class="badge">Interactive • Sound reactive • WebGL</div>
+        <div class="hint">Move pointer over fluid • hold/hover near blobs to split them</div>
+      </div>
+    </section>
+
+    <aside class="controls">
+      <div class="card">
+        <h2>Audio source</h2>
+
+        <label for="audioFile">Upload music</label>
+        <input id="audioFile" type="file" accept="audio/*" />
+        <audio id="audio" controls></audio>
+
+        <div class="row" style="margin-top:12px">
+          <button id="micBtn" type="button" class="primary">Use microphone</button>
+          <button id="demoBtn" type="button">Demo pulse</button>
+          <button id="pauseBtn" type="button">Pause</button>
+        </div>
+
+        <div id="status" class="status">Demo mode is active.</div>
+
+        <div class="meter" aria-hidden="true">
+          <div><b>Bass</b><span><i id="bassBar"></i></span></div>
+          <div><b>Mids</b><span><i id="midBar"></i></span></div>
+          <div><b>Highs</b><span><i id="highBar"></i></span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Simulation</h2>
+
+        <div class="control">
+          <div class="control-head"><label for="sensitivity">Audio sensitivity</label><output id="sensitivityOut">1.60</output></div>
+          <input id="sensitivity" type="range" min="0.4" max="3.5" step="0.05" value="1.60" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="magnet">Magnet strength</label><output id="magnetOut">1.40</output></div>
+          <input id="magnet" type="range" min="0.2" max="4.0" step="0.05" value="1.40" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="motion">Base movement</label><output id="motionOut">1.35</output></div>
+          <input id="motion" type="range" min="0.3" max="3.0" step="0.05" value="1.35" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="interaction">Pointer force</label><output id="interactionOut">1.50</output></div>
+          <input id="interaction" type="range" min="0.2" max="3.0" step="0.05" value="1.50" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="splitForce">Split strength</label><output id="splitForceOut">1.40</output></div>
+          <input id="splitForce" type="range" min="0.3" max="2.5" step="0.05" value="1.40" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="recovery">Recovery speed</label><output id="recoveryOut">1.00</output></div>
+          <input id="recovery" type="range" min="0.2" max="2.0" step="0.05" value="1.00" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="viscosity">Viscosity</label><output id="viscosityOut">0.91</output></div>
+          <input id="viscosity" type="range" min="0.72" max="0.985" step="0.005" value="0.91" />
+        </div>
+
+        <div class="control">
+          <div class="control-head"><label for="drops">Droplets</label><output id="dropsOut">24</output></div>
+          <input id="drops" type="range" min="12" max="30" step="1" value="24" />
+        </div>
+
+        <div class="switches">
+          <label class="switchline"><span>Pointer attraction</span><input id="pointerAttract" type="checkbox" checked></label>
+          <label class="switchline"><span>Auto magnetic orbit</span><input id="autoOrbit" type="checkbox" checked></label>
+        </div>
+      </div>
+
+      <div class="card tips">
+        <h2>Interaction</h2>
+        <div>Hover/move close to the fluid → pulls the mass toward the pointer.</div>
+        <div>Stay very close for a moment → the mass bursts into smaller droplets.</div>
+        <div>Move away → droplets slowly regroup into one larger blob.</div>
+        <div>Fast mouse movement → adds turbulence and throws droplets outward.</div>
+        <br>
+        <div><strong>Microphone:</strong> live mic requires HTTPS or localhost.</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="footer">Single-file build — no frameworks or external libraries required.</div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const canvas = $('#ffCanvas');
+  const gl = canvas.getContext('webgl', { antialias:true, alpha:false });
+
+  const audio = $('#audio');
+  const audioFile = $('#audioFile');
+  const micBtn = $('#micBtn');
+  const demoBtn = $('#demoBtn');
+  const pauseBtn = $('#pauseBtn');
+  const statusEl = $('#status');
+
+  const sensitivity = $('#sensitivity');
+  const magnet = $('#magnet');
+  const motion = $('#motion');
+  const interaction = $('#interaction');
+  const splitForce = $('#splitForce');
+  const recovery = $('#recovery');
+  const viscosity = $('#viscosity');
+  const drops = $('#drops');
+  const pointerAttract = $('#pointerAttract');
+  const autoOrbit = $('#autoOrbit');
+
+  const bassBar = $('#bassBar');
+  const midBar = $('#midBar');
+  const highBar = $('#highBar');
+
+  const syncOutput = (input, outputId, digits=2) => {
+    const out = $(outputId);
+    const render = () => out.value = digits === 0 ? String(Math.round(+input.value)) : (+input.value).toFixed(digits);
+    input.addEventListener('input', render);
+    render();
+  };
+
+  syncOutput(sensitivity, '#sensitivityOut');
+  syncOutput(magnet, '#magnetOut');
+  syncOutput(motion, '#motionOut');
+  syncOutput(interaction, '#interactionOut');
+  syncOutput(splitForce, '#splitForceOut');
+  syncOutput(recovery, '#recoveryOut');
+  syncOutput(viscosity, '#viscosityOut', 3);
+  syncOutput(drops, '#dropsOut', 0);
+
+  if (!gl) {
+    statusEl.textContent = 'WebGL is not available in this browser.';
+    return;
+  }
+
+  const vertexSource = `
+    attribute vec2 p;
+    void main() { gl_Position = vec4(p, 0.0, 1.0); }
+  `;
+
+  const fragmentSource = `
+    precision highp float;
+
+    uniform vec2 res;
+    uniform float t;
+    uniform float bass;
+    uniform float mids;
+    uniform float highs;
+    uniform float energy;
+    uniform float magnetStrength;
+    uniform float count;
+    uniform vec3 balls[30];
+
+    float hash(vec2 p){
+      p = fract(p * vec2(123.34, 345.45));
+      p += dot(p, p + 34.345);
+      return fract(p.x * p.y);
+    }
+
+    float fieldAt(vec2 p){
+      float f = 0.0;
+      for(int i=0;i<30;i++){
+        if(float(i) >= count) break;
+        vec2 d = p - balls[i].xy;
+        float r = balls[i].z;
+        f += (r*r) / (dot(d,d) + 0.00032);
+      }
+      return f;
+    }
+
+    void main(){
+      vec2 uv = (gl_FragCoord.xy - 0.5 * res) / min(res.x, res.y);
+      uv.y = -uv.y;
+
+      float sphere = length(uv);
+      vec3 bg = vec3(0.956, 0.956, 0.945);
+
+      if(sphere > 0.47){
+        float shadow = smoothstep(0.62, 0.25, length(uv - vec2(0.0, 0.42)));
+        bg *= 1.0 - 0.085 * shadow;
+        gl_FragColor = vec4(bg,1.0);
+        return;
+      }
+
+      vec2 wobble = vec2(
+        sin(uv.y*28.0+t*2.4) + sin(uv.x*19.0-t*1.7),
+        cos(uv.x*24.0-t*1.8) + sin(uv.y*23.0+t*1.5)
+      ) * (0.0018 + 0.009*mids + 0.004*energy);
+
+      float f = fieldAt(uv + wobble);
+
+      float edgeNoise = (hash(floor((uv + 0.5)*285.0)) - 0.5) * (0.022 + 0.075*highs);
+      float threshold = 0.92 + edgeNoise;
+      float ferro = smoothstep(threshold - 0.13, threshold + 0.075, f);
+
+      float angle = atan(uv.y, uv.x);
+      float spikeFreq = 14.0 + highs*18.0 + energy*5.0;
+      float spikes = sin(angle * spikeFreq + t*(2.5+energy*2.0));
+      float spikes2 = sin(angle * (spikeFreq*0.57) - t*3.1);
+      float radial = exp(-10.5 * abs(sphere - 0.27));
+      float spikeAmp = (0.09 + 0.15*mids + 0.10*highs + 0.08*energy) * magnetStrength;
+      ferro = max(ferro, smoothstep(0.89, 0.995, f + spikeAmp*(0.7*spikes+0.3*spikes2)*radial));
+
+      float glass = pow(max(0.0,1.0-sphere/0.47),0.5);
+      vec3 liquid = vec3(0.988,0.992,0.985);
+      liquid -= 0.06*(1.0-glass);
+
+      vec2 lightPos = vec2(-0.16,-0.22);
+      float highlight = pow(max(0.0,1.0-length(uv-lightPos)/0.37),3.0);
+      liquid += highlight*0.14;
+
+      float rim = smoothstep(0.462,0.445,sphere) - smoothstep(0.445,0.408,sphere);
+      liquid -= rim*0.145;
+
+      vec3 ferroCol = vec3(0.008,0.010,0.009);
+      float metallic = clamp(f*0.14,0.0,1.0);
+      ferroCol += vec3(0.045)*metallic;
+      ferroCol += vec3(0.12)*highlight*ferro;
+
+      vec3 col = mix(liquid, ferroCol, ferro);
+
+      float bottomShade = smoothstep(-0.04,0.44,uv.y)*0.055;
+      col -= bottomShade*(1.0-ferro);
+
+      gl_FragColor = vec4(col,1.0);
+    }
+  `;
+
+  function compileShader(type, source){
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+      throw new Error(gl.getShaderInfoLog(shader) || 'Shader compile error');
+    }
+    return shader;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexSource));
+  gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentSource));
+  gl.linkProgram(program);
+
+  if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+    throw new Error(gl.getProgramInfoLog(program) || 'Program link error');
+  }
+
+  gl.useProgram(program);
+
+  const vertices = new Float32Array([
+    -1,-1, 1,-1, -1,1,
+    -1, 1, 1,-1,  1,1
+  ]);
+
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+  const p = gl.getAttribLocation(program, 'p');
+  gl.enableVertexAttribArray(p);
+  gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  ['res','t','bass','mids','highs','energy','magnetStrength','count','balls']
+    .forEach(name => U[name] = gl.getUniformLocation(program, name));
+
+  const blobs = [];
+  const MAX_BLOBS = 30;
+
+  function resetBlobs(){
+    blobs.length = 0;
+    const n = Math.max(12, Math.min(MAX_BLOBS, +drops.value|0));
+    for(let i=0;i<n;i++){
+      const large = i < 4;
+      blobs.push({
+        x:(Math.random()-.5)*.16,
+        y:.16 + Math.random()*.15,
+        vx:(Math.random()-.5)*.001,
+        vy:(Math.random()-.5)*.001,
+        r:large ? .062 + Math.random()*.025 : .012 + Math.random()*.023,
+        baseR:large ? .062 + Math.random()*.025 : .012 + Math.random()*.023,
+        phase:Math.random()*Math.PI*2,
+        split:0
+      });
+    }
+  }
+
+  resetBlobs();
+  drops.addEventListener('change', resetBlobs);
+
+  let audioCtx = null;
+  let analyser = null;
+  let mediaSource = null;
+  let micSource = null;
+  let micStream = null;
+  let freq = null;
+
+  function ensureAudioContext(){
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) throw new Error('Web Audio API not supported');
+      audioCtx = new AC();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.84;
+      freq = new Uint8Array(analyser.frequencyBinCount);
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function disconnectMic(){
+    if(micSource){
+      try{ micSource.disconnect(); }catch(e){}
+      micSource = null;
+    }
+    if(micStream){
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+    micBtn.textContent = 'Use microphone';
+  }
+
+  async function startMic(){
+    try{
+      ensureAudioContext();
+      disconnectMic();
+      audio.pause();
+
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio:{
+          echoCancellation:false,
+          noiseSuppression:false,
+          autoGainControl:false
+        }
+      });
+
+      micSource = audioCtx.createMediaStreamSource(micStream);
+      micSource.connect(analyser);
+
+      demoMode = false;
+      micBtn.textContent = 'Stop microphone';
+      demoBtn.textContent = 'Demo pulse';
+      statusEl.textContent = 'Microphone input is active.';
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = 'Microphone unavailable. Use HTTPS/localhost and allow microphone permission.';
+    }
+  }
+
+  micBtn.addEventListener('click', async () => {
+    if(micStream){
+      disconnectMic();
+      demoMode = true;
+      demoBtn.textContent = 'Demo active';
+      statusEl.textContent = 'Demo mode is active.';
+    }else{
+      await startMic();
+    }
+  });
+
+  audioFile.addEventListener('change', () => {
+    const file = audioFile.files && audioFile.files[0];
+    if(!file) return;
+
+    disconnectMic();
+
+    const oldUrl = audio.dataset.objectUrl;
+    if(oldUrl) URL.revokeObjectURL(oldUrl);
+
+    const url = URL.createObjectURL(file);
+    audio.dataset.objectUrl = url;
+    audio.src = url;
+
+    ensureAudioContext();
+
+    if(!mediaSource){
+      mediaSource = audioCtx.createMediaElementSource(audio);
+      mediaSource.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+
+    demoMode = false;
+    demoBtn.textContent = 'Demo pulse';
+    statusEl.textContent = 'Audio file loaded. Press play.';
+    audio.play().catch(() => {});
+  });
+
+  audio.addEventListener('play', () => {
+    disconnectMic();
+    ensureAudioContext();
+    demoMode = false;
+    demoBtn.textContent = 'Demo pulse';
+    statusEl.textContent = 'Reacting to uploaded audio.';
+  });
+
+  let demoMode = true;
+
+  demoBtn.addEventListener('click', () => {
+    disconnectMic();
+    audio.pause();
+    demoMode = !demoMode;
+    demoBtn.textContent = demoMode ? 'Demo active' : 'Demo pulse';
+    statusEl.textContent = demoMode ? 'Demo mode is active.' : 'Demo mode stopped.';
+  });
+
+  let running = true;
+  let raf = 0;
+
+  pauseBtn.addEventListener('click', () => {
+    running = !running;
+    pauseBtn.textContent = running ? 'Pause' : 'Resume';
+    if(running) raf = requestAnimationFrame(frame);
+  });
+
+  function band(loPct, hiPct){
+    if(!freq || !analyser) return 0;
+    const lo = Math.floor(loPct * freq.length);
+    const hi = Math.max(lo+1, Math.floor(hiPct * freq.length));
+    let sum = 0;
+    for(let i=lo;i<hi;i++) sum += freq[i];
+    return sum / (hi-lo) / 255;
+  }
+
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(320, Math.round(rect.width*dpr));
+    const h = Math.max(320, Math.round(rect.height*dpr));
+    if(canvas.width !== w || canvas.height !== h){
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0,0,w,h);
+    }
+  }
+
+  const pointer = {
+    active:false,
+    x:0,
+    y:0,
+    px:0,
+    py:0,
+    speed:0,
+    hold:0,
+    down:false
+  };
+
+  function setPointer(e){
+    const rect = canvas.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+
+    const x = (nx - 0.5) * (rect.width / Math.min(rect.width, rect.height));
+    const y = (ny - 0.5) * (rect.height / Math.min(rect.width, rect.height));
+
+    const dx = x - pointer.x;
+    const dy = y - pointer.y;
+
+    pointer.px = pointer.x;
+    pointer.py = pointer.y;
+    pointer.x = x;
+    pointer.y = y;
+    pointer.speed = Math.min(1, Math.hypot(dx,dy)*9);
+    pointer.active = true;
+  }
+
+  canvas.addEventListener('pointerenter', setPointer);
+  canvas.addEventListener('pointermove', setPointer);
+  canvas.addEventListener('pointerdown', e => {
+    pointer.down = true;
+    canvas.setPointerCapture?.(e.pointerId);
+    setPointer(e);
+  });
+  canvas.addEventListener('pointerup', e => {
+    pointer.down = false;
+    try{canvas.releasePointerCapture?.(e.pointerId)}catch(_){}
+  });
+  canvas.addEventListener('pointerleave', () => {
+    pointer.active = false;
+    pointer.down = false;
+    pointer.hold = 0;
+  });
+
+  let last = performance.now();
+  let smoothB = 0, smoothM = 0, smoothH = 0;
+  let burstCooldown = 0;
+
+  function burstDroplets(strength, originX, originY){
+    const s = +splitForce.value * strength;
+    for(let i=0;i<blobs.length;i++){
+      const q = blobs[i];
+      const dx = q.x-originX;
+      const dy = q.y-originY;
+      const d = Math.max(.035, Math.hypot(dx,dy));
+
+      const angle = Math.atan2(dy,dx) + (Math.random()-.5)*1.1;
+      const impulse = (.004 + Math.random()*.008) * s;
+
+      q.vx += Math.cos(angle)*impulse;
+      q.vy += Math.sin(angle)*impulse;
+      q.vx += (Math.random()-.5)*.007*s;
+      q.vy += (Math.random()-.5)*.007*s;
+
+      q.split = Math.min(1, q.split + .7 + Math.random()*.3);
+    }
+  }
+
+  function frame(now){
+    if(!running) return;
+
+    resize();
+
+    const dt = Math.min(32, now-last)/16.67;
+    last = now;
+    const time = now*0.001;
+
+    let b=0,m=0,h=0;
+
+    const usingRealAudio = analyser && ((micStream != null) || !audio.paused);
+
+    if(usingRealAudio){
+      analyser.getByteFrequencyData(freq);
+      b = band(.00,.08);
+      m = band(.08,.34);
+      h = band(.34,.85);
+    }else if(demoMode){
+      b = .34 + .30*(.5+.5*Math.sin(time*2.8));
+      m = .22 + .22*(.5+.5*Math.sin(time*4.4+1.1));
+      h = .14 + .18*(.5+.5*Math.sin(time*7.7+2.0));
+    }
+
+    const sens = +sensitivity.value;
+    b = Math.min(1,b*sens);
+    m = Math.min(1,m*sens);
+    h = Math.min(1,h*sens);
+
+    smoothB += (b-smoothB)*0.18;
+    smoothM += (m-smoothM)*0.14;
+    smoothH += (h-smoothH)*0.16;
+
+    b = smoothB; m = smoothM; h = smoothH;
+
+    bassBar.style.width = (b*100).toFixed(0)+'%';
+    midBar.style.width = (m*100).toFixed(0)+'%';
+    highBar.style.width = (h*100).toFixed(0)+'%';
+
+    const mag = +magnet.value;
+    const visc = +viscosity.value;
+    const move = +motion.value;
+    const interact = +interaction.value;
+    const recover = +recovery.value;
+
+    let attractX = 0;
+    let attractY = .13;
+
+    if(autoOrbit.checked){
+      attractX += .18*Math.sin(time*.78*move) + .09*Math.sin(time*1.93)*b*move;
+      attractY += -.17*b + .07*Math.sin(time*.93*move) + .035*Math.cos(time*1.55);
+    }
+
+    if(pointer.active && pointerAttract.checked){
+      const pointerInside = Math.hypot(pointer.x,pointer.y) < .49;
+      if(pointerInside){
+        attractX = attractX*.32 + pointer.x*.68;
+        attractY = attractY*.32 + pointer.y*.68;
+
+        let nearest = 999;
+        for(const q of blobs) nearest = Math.min(nearest, Math.hypot(q.x-pointer.x,q.y-pointer.y));
+
+        if(nearest < .15){
+          pointer.hold += dt;
+        }else{
+          pointer.hold = Math.max(0,pointer.hold-dt*1.6);
+        }
+
+        if(pointer.speed > .2){
+          for(const q of blobs){
+            const d = Math.max(.04, Math.hypot(q.x-pointer.x,q.y-pointer.y));
+            if(d < .28){
+              q.vx += (pointer.x-pointer.px)*.032*interact/d;
+              q.vy += (pointer.y-pointer.py)*.032*interact/d;
+            }
+          }
+        }
+
+        burstCooldown -= dt;
+        const extremeHover = pointer.hold > 18 || pointer.down;
+        if(extremeHover && burstCooldown <= 0){
+          burstDroplets(pointer.down ? 1.35 : 1.0, pointer.x, pointer.y);
+          burstCooldown = 30;
+          pointer.hold = 0;
+        }
+      }
+    }else{
+      pointer.hold = Math.max(0,pointer.hold-dt*2);
+      burstCooldown -= dt;
+    }
+
+    const centerX = attractX;
+    const centerY = attractY;
+
+    let energy = Math.min(1, b*.55 + m*.3 + h*.15 + pointer.speed*.55);
+
+    for(let i=0;i<blobs.length;i++){
+      const q = blobs[i];
+
+      const dx = centerX-q.x;
+      const dy = centerY-q.y;
+      const d = Math.max(.035, Math.hypot(dx,dy));
+
+      const audioPull = (.00022 + .00225*b) * mag * move;
+      const regroupPull = (.00018 + .00055*recover) * (1-q.split*.6);
+      const pointerBoost = pointer.active ? interact : 1;
+
+      const pull = (audioPull + regroupPull) * pointerBoost / (d+.10);
+
+      q.vx += dx/d*pull*dt;
+      q.vy += dy/d*pull*dt;
+
+      q.vx += Math.sin(time*2.7*move+q.phase+i*.43)*(.00016+.00082*m)*move*dt;
+      q.vy += Math.cos(time*2.15*move+q.phase+i*.67)*(.00014+.00072*m)*move*dt;
+
+      q.vx += Math.sin(time*5.3 + i)*.00018*h*move*dt;
+      q.vy += Math.cos(time*4.6 + i*.7)*.00018*h*move*dt;
+
+      if(!pointer.active){
+        q.vy += (i<4 ? .00008 : .00015)*(1-b*.5)*dt;
+      }
+
+      q.split = Math.max(0, q.split - .0032*recover*dt);
+
+      q.vx *= Math.pow(visc,dt);
+      q.vy *= Math.pow(visc,dt);
+
+      q.x += q.vx*dt;
+      q.y += q.vy*dt;
+
+      const maxR = .415-q.r;
+      const rr = Math.hypot(q.x,q.y);
+
+      if(rr > maxR){
+        const nx = q.x/rr;
+        const ny = q.y/rr;
+        q.x = nx*maxR;
+        q.y = ny*maxR;
+
+        const dot = q.vx*nx + q.vy*ny;
+        q.vx -= 1.72*dot*nx;
+        q.vy -= 1.72*dot*ny;
+      }
+    }
+
+    const packed = new Float32Array(90);
+
+    blobs.forEach((q,i) => {
+      const splitShrink = 1 - q.split*.28;
+      const audioGrow = 1 + .25*b + (i>3 ? .28*h : .06*m);
+      const r = q.baseR * splitShrink * audioGrow;
+
+      packed[i*3] = q.x;
+      packed[i*3+1] = q.y;
+      packed[i*3+2] = r;
+    });
+
+    gl.uniform2f(U.res, canvas.width, canvas.height);
+    gl.uniform1f(U.t, time);
+    gl.uniform1f(U.bass, b);
+    gl.uniform1f(U.mids, m);
+    gl.uniform1f(U.highs, h);
+    gl.uniform1f(U.energy, energy);
+    gl.uniform1f(U.magnetStrength, mag);
+    gl.uniform1f(U.count, blobs.length);
+    gl.uniform3fv(U.balls, packed);
+
+    gl.drawArrays(gl.TRIANGLES,0,6);
+
+    pointer.speed *= .86;
+    raf = requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('beforeunload', () => {
+    cancelAnimationFrame(raf);
+    disconnectMic();
+    const url = audio.dataset.objectUrl;
+    if(url) URL.revokeObjectURL(url);
+    if(audioCtx) audioCtx.close().catch(()=>{});
+  });
+
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    demoMode = false;
+    demoBtn.textContent = 'Demo pulse';
+    statusEl.textContent = 'Animation reduced by system preference. You can still start demo or audio.';
+  } else {
+    demoBtn.textContent = 'Demo active';
+  }
+
+  raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
