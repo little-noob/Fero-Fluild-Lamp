@@ -1074,20 +1074,6 @@ direct human interaction
 
 without requiring a native application or dedicated graphics software.
 
----
-
-## Author / Maintainer
-
-Add your GitHub profile and project information here.
-
-```text
-Author: YOUR NAME
-GitHub: https://github.com/YOUR_USERNAME
-Project: Virtual Ferrofluid Lamp
-```
-
----
-
 ## Version
 
 Current prototype:
